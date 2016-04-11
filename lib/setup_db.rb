@@ -1,6 +1,9 @@
 require 'sqlite3'
+require 'CSV'
 
 class ReleaseDatabase
+  FILE_PATH = 'source/20160406-record-collection.csv'
+
   attr_reader :db
 
   def initialize(dbname = "releases")
@@ -31,12 +34,34 @@ class ReleaseDatabase
   # one table
   # use a bang method for when something will change, it's serious business
   end
+
+  def load! # this will pars and put data into the database
+    #statement prep is a sql concept where you create a query tht is designed for single use
+    insert_statement = <<-INSERT_STATEMENT
+      INSERT INTO albums (
+          label_code, artist, title, label, format, released, date_added
+        ) VALUES (
+        :label_code, :artist, :title, :label, :format, :released, :date_added
+      );
+    INSERT_STATEMENT
+
+    prepared_statement = @db.prepare(insert_statement) #prepare does sql tranformations to prepare it so we can use it.
+    # This can be done with pure Ruby, but this is the SQLite3 version way to do it.  It's much faster than pure ruby
+    # In the values you are using a symbol to store into hashes.  it makes it quick and easy.
+    # There's no id because SQL takes care of that part
+
+    # now that we have a preparet statement... let's iterate the csv and use its values to populate our database
+    CSV.foreach(FILE_PATH, headers: true) do |row|
+      prepared_statement.execute(row.to_h) #to_h is to hash. Because the csv row has headers you can put it into a hash
+    end
+  end
 end
 
 release_db = ReleaseDatabase.new
 release_db.reset_schema!
+release_db.load!
 
-
+#csv with headers let you have hashes, so so much better to understand
 
 
 
